@@ -4,90 +4,84 @@ from bs4 import BeautifulSoup
 from collections import Counter
 import re
 
-st.set_page_config(page_title="SEO Analyzer", layout="wide")
+st.set_page_config(page_title="AI SEO Assistant", layout="wide")
 
-st.title("🚀 SEO Analyzer Tool")
-st.write("Analyze your website and get instant SEO insights")
+st.title("🚀 AI SEO Assistant for Marketing Teams")
 
-url = st.text_input("Enter Website URL (with https://)")
+url = st.text_input("Enter Your Website URL")
+competitor_url = st.text_input("Enter Competitor URL (Optional)")
+
+def analyze_site(url):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    title = soup.title.string if soup.title else ""
+    
+    meta_desc = ""
+    meta = soup.find("meta", attrs={"name": "description"})
+    if meta:
+        meta_desc = meta.get("content")
+
+    h1 = [h.text.strip() for h in soup.find_all("h1")]
+    images = soup.find_all("img")
+    missing_alt = [img for img in images if not img.get("alt")]
+
+    text = soup.get_text().lower()
+    words = re.findall(r'\b\w+\b', text)
+    keywords = Counter(words).most_common(10)
+
+    score = 100
+    if not title: score -= 20
+    if not meta_desc: score -= 20
+    if len(h1) == 0: score -= 20
+    if len(missing_alt) > 0: score -= 10
+
+    return {
+        "title": title,
+        "meta": meta_desc,
+        "h1": h1,
+        "missing_alt": len(missing_alt),
+        "keywords": keywords,
+        "score": score
+    }
 
 if st.button("Analyze"):
-    if not url:
-        st.warning("Please enter a URL")
-    else:
-        try:
-            response = requests.get(url)
-            soup = BeautifulSoup(response.text, "html.parser")
+    if url:
+        data = analyze_site(url)
 
-            # TITLE
-            title = soup.title.string if soup.title else ""
+        st.subheader("📊 SEO Score")
+        st.success(f"{data['score']}/100")
 
-            # META
-            meta_desc = ""
-            meta = soup.find("meta", attrs={"name": "description"})
-            if meta:
-                meta_desc = meta.get("content")
+        st.subheader("📌 SEO Breakdown")
+        st.write({
+            "Title": "Missing" if not data["title"] else "Good",
+            "Meta Description": "Missing" if not data["meta"] else "Good",
+            "H1 Tags": "Missing" if len(data["h1"]) == 0 else "Good",
+            "Image SEO": f"{data['missing_alt']} missing alt tags"
+        })
 
-            # HEADINGS
-            h1 = [h.text.strip() for h in soup.find_all("h1")]
-            h2 = [h.text.strip() for h in soup.find_all("h2")]
+        st.subheader("🔍 Top Keywords")
+        st.write(data["keywords"])
 
-            # IMAGES
-            images = soup.find_all("img")
-            missing_alt = [img for img in images if not img.get("alt")]
+        st.subheader("⚡ Quick Wins")
+        if not data["title"]:
+            st.write("➤ Add a title tag to improve ranking")
+        if not data["meta"]:
+            st.write("➤ Add meta description to improve CTR")
+        if len(data["h1"]) == 0:
+            st.write("➤ Add H1 tag for better structure")
+        if data["missing_alt"] > 0:
+            st.write("➤ Add alt text to images")
 
-            # KEYWORDS
-            text = soup.get_text().lower()
-            words = re.findall(r'\b\w+\b', text)
-            keywords = Counter(words).most_common(10)
+        st.subheader("🧠 AI Suggestions")
+        st.write("Improve keyword usage and ensure content matches search intent.")
 
-            # SEO SCORE
-            score = 100
-            if not title: score -= 20
-            if not meta_desc: score -= 20
-            if len(h1) == 0: score -= 20
-            if len(missing_alt) > 0: score -= 10
+        # Competitor Comparison
+        if competitor_url:
+            comp_data = analyze_site(competitor_url)
 
-            # DISPLAY
-            st.subheader("📊 SEO Results")
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.write("### Title")
-                st.write(title if title else "Missing")
-
-                st.write("### Meta Description")
-                st.write(meta_desc if meta_desc else "Missing")
-
-                st.write("### H1 Tags")
-                st.write(h1 if h1 else "None")
-
-                st.write("### H2 Tags")
-                st.write(h2 if h2 else "None")
-
-            with col2:
-                st.write("### Images")
-                st.write(f"Total: {len(images)}")
-                st.write(f"Missing Alt: {len(missing_alt)}")
-
-                st.write("### Top Keywords")
-                st.write(keywords)
-
-                st.write("### SEO Score")
-                st.success(f"{score}/100")
-
-            # RECOMMENDATIONS
-            st.subheader("📌 Recommendations")
-
-            if not title:
-                st.warning("Add a proper title tag")
-            if not meta_desc:
-                st.warning("Add a meta description")
-            if len(h1) == 0:
-                st.warning("Add at least one H1 tag")
-            if len(missing_alt) > 0:
-                st.warning("Add alt text to images")
-
-        except Exception as e:
-            st.error(f"Error: {e}")
+            st.subheader("⚔️ Competitor Comparison")
+            st.write({
+                "Your Score": data["score"],
+                "Competitor Score": comp_data["score"]
+            })
